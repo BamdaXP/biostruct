@@ -71,9 +71,9 @@ class Entry:
 		os.makedirs(self.dir, exist_ok=True)
 
 		if self.asm:
-			url = f"https://files.rcsb.org/download/{self.pid}.cif.gz"
-		else:
 			url = f"https://files.rcsb.org/download/{self.pid}-assembly{self.asm}.cif.gz"
+		else:
+			url = f"https://files.rcsb.org/download/{self.pid}.cif.gz"
 		#download gz file
 		response = requests.get(url)
 		gfilepath = self.get_path('cif.gz')
