@@ -118,11 +118,13 @@ class Entry:
 			f.write(response.content)
 
 	def get_monoers(self,return_nuclein:bool=False):
-		for chain_id in self.fasta_dict.keys():
+		for chain_id in self.model.child_dict.keys():
+			#except nuclein chains and chains not in fasta
 			if (not return_nuclein) and self.is_nuclein(chain_id):
 				continue
-			else:
-				yield Monoer(f"{self}:{chain_id}")
+			if  chain_id not in self.fasta_dict.keys():
+				continue
+			yield Monoer(f"{self}:{chain_id}")
 
 	def get_pairs(self,self_pairing:bool=False):
 		monoers = [m for m in self.get_monoers()]
