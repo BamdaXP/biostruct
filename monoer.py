@@ -9,14 +9,14 @@ class Monoer():
 
 
 	@property
-	def full_string(self):
+	def full_string(self):  # type: ignore
 		if self.asm:
 			return f"{self.pid}({self.asm}):{self.chain_id}"
 		else:
 			return f"{self.pid}:{self.chain_id}"
 
 	@full_string.setter
-	def full_string(self, fs):
+	def full_string(self, fs):  # type: ignore
 		match = re.match(Monoer.PATTERN, fs)
 		assert match
 		

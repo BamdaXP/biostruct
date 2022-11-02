@@ -1,4 +1,4 @@
-import os,gzip,requests,json,re
+import os,requests,json,re,wget
 
 from Bio.PDB.Structure import Structure
 from Bio.PDB.Model import Model
@@ -7,15 +7,12 @@ from Bio.SeqIO import parse
 
 from biostruct.monoer import Monoer
 from biostruct.pair import Pair
+from biostruct.utils.residue_refs import STD_REF
 
 import numpy as np
 
 
 
-RESIDUE_REF = {
-	'GLY':'G','ALA':'A','VAL':'V','LEU':'L','ILE':'I','PRO':'P','PHE':'F','TYR':'Y','TRP':'W','SER':'S','THR':'T','CYS':'C','MET':'M','ASN':'N','GLN':'Q','ASP':'D','GLU':'E','LYS':'K','ARG':'R','HIS':'H',
-	'UNK':'X'
-	}
 
 class Entry:
 	@staticmethod
@@ -30,13 +27,13 @@ class Entry:
 			if os.path.isfile(path):
 				os.remove(path)
 			elif os.path.isdir(path):
-				for root, dirs, files in os.walk():
+				for root, dirs, files in os.walk():  # type: ignore
 					for name in files:
 						os.remove(os.path.join(root, name))
 					for name in dirs:
 						os.rmdir(os.path.join(root, name))
 
-	def __init__(self, pid: str, root_dir:str,asm:int = None) -> None:
+	def __init__(self, pid: str, root_dir:str,asm:int|None = None) -> None:
 		self.pid = pid.upper()
 		if asm:
 			self.dir = os.path.join(root_dir,f"{pid}({asm})")
@@ -60,7 +57,7 @@ class Entry:
 			finally:
 				self.__model__ = MMCIFParser(QUIET=True).get_structure(
 					self.pid, self.get_path('mmcif.cif'))
-		return self.__structure__
+		return self.__structure__  # type: ignore
 
 	@property
 	def model(self)->Model:
@@ -71,9 +68,15 @@ class Entry:
 		os.makedirs(self.dir, exist_ok=True)
 
 		if self.asm:
-			url = f"https://files.rcsb.org/download/{self.pid}-assembly{self.asm}.cif.gz"
+			url = f"https://files.rcsb.org/download/{self.pid}-assembly{self.asm}.cif"
 		else:
-			url = f"https://files.rcsb.org/download/{self.pid}.cif.gz"
+			url = f"https://files.rcsb.org/download/{self.pid}.cif"
+		
+		wget.download(url=url,
+			out=self.get_path('mmcif.cif'),
+			bar=None)#type: ignore
+		#os.system(f"wget -O \'{self.get_path('mmcif.cif')}\' {url}")
+		'''
 		#download gz file
 		response = requests.get(url)
 		gfilepath = self.get_path('cif.gz')
@@ -84,7 +87,7 @@ class Entry:
 			with open(self.get_path('mmcif.cif'), 'wb') as f:
 				f.write(g_file.read())
 			os.remove(gfilepath)
-
+		'''
 	__fasta_dict__ = None
 	@property
 	def fasta_dict(self)->dict:
@@ -110,19 +113,25 @@ class Entry:
 		return self.__fasta_dict__
 	def __download_fasta__(self):
 		print("Download fasta {0}...".format(self))
-		
-		response = requests.get(
-			"https://www.rcsb.org/fasta/entry/{0}".format(self.pid))
+		os.makedirs(self.dir, exist_ok=True)
 		fastafilepath = self.get_path('sequences.fasta')
-		with open(fastafilepath, 'wb') as f:
-			f.write(response.content)
+		wget.download(
+			url=f"https://www.rcsb.org/fasta/entry/{self.pid}",
+			out=fastafilepath,
+			bar=None)  # type: ignore
+		
 
-	def get_monoers(self,return_nuclein:bool=False):
-		for chain_id in self.model.child_dict.keys():
-			#except nuclein chains and chains not in fasta
-			if chain_id not in self.fasta_dict.keys():
+
+	def get_monoers(self,excepts:list[str]=['nuclein','unknown','not_fasta']):
+		if 'not_fasta' in excepts:
+			chains = self.fasta_dict.keys()
+		else:
+			chains = self.model.child_dict.keys()
+		for chain_id in chains:
+			#except chains not in fasta
+			if 'unknown' in excepts and self.has_unknown(chain_id):
 				continue
-			if (not return_nuclein) and self.is_nuclein(chain_id):
+			if 'nuclein' in excepts and self.is_nuclein(chain_id):
 				continue
 
 			yield Monoer(f"{self}:{chain_id}")
@@ -136,11 +145,14 @@ class Entry:
 				else:
 					yield Pair(f"{monoers[i]}_{monoers[j]}")
 
-	def is_nuclein(self,chain_id):
+	def get_modelseq(self,chain_id:str,residue_ref:dict[str,str]=STD_REF)->str:
+		return ''.join([STD_REF[res.resname] for res in self.model.child_dict[chain_id] if res.resname in STD_REF.keys()])
+
+	def is_nuclein(self,chain_id:str)->bool:
 		seq = self.fasta_dict[chain_id]["sequence"]
 		return {seq}.issubset({"AUTGC"})
 
-	def has_unknown(self,chain_id):
+	def has_unknown(self,chain_id:str)->bool:
 		seq = self.fasta_dict[chain_id]["sequence"]
 		return "X" in seq
 	
@@ -155,9 +167,11 @@ class Entry:
 			except Exception as e:
 				print("{0}:Load uniprot failed!".format(self))
 				self.__download_uniprot__()
-		return self.__uniprot_dict__
+		return self.__uniprot_dict__  # type: ignore
+		
 	def __download_uniprot__(self):  
 		print("Download uniprot {0}...".format(self))
+		os.makedirs(self.dir, exist_ok=True)
 		l_pid = self.pid.lower()
 		response = requests.get(
 				"https://www.ebi.ac.uk/pdbe/api/mappings/uniprot/{0}".format(l_pid))
@@ -169,7 +183,7 @@ class Entry:
 		with open(self.get_path("uniprot.json"), 'w') as jf:
 			json.dump(self.__uniprot_dict__, jf)
 
-	__pfam_dict__ = None
+	#__pfam_dict__ = None
 	@property
 	def pfam_dict(self)->dict:
 		if self.__pfam_dict__ == None:
@@ -183,6 +197,8 @@ class Entry:
 		return self.__pfam_dict__
 	def __download_pfam__(self):
 		print("Download pfam {0}...".format(self))
+		os.makedirs(self.dir, exist_ok=True)
+		
 		l_pid = self.pid.lower()
 		response = requests.get(
 				"https://www.ebi.ac.uk/pdbe/api/mappings/pfam/{0}".format(l_pid))

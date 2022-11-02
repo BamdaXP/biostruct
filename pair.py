@@ -1,6 +1,3 @@
-import os,re
-
-from typing import Optional, overload
 
 from biostruct.monoer import Monoer
 
@@ -14,11 +11,11 @@ class Pair():
 		self.full_string:str = full_string
 		
 	@property
-	def full_string(self):
+	def full_string(self)->str:  # type: ignore
 		return f"{self.monoer1}_{self.monoer2}"
 
 	@full_string.setter
-	def full_string(self,fs:str):
+	def full_string(self,fs:str)->None:  # type: ignore
 		fss = fs.split('_')
 		assert len(fss) == 2
 		self.monoer1 = Monoer(fss[0])

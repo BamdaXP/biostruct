@@ -2,9 +2,10 @@ import os,sys
 
 
 import Bio.pairwise2
-
-from biostruct.entry import Entry,RESIDUE_REF
 from Bio.Align import substitution_matrices
+
+from biostruct.entry import Entry
+
 
 BLOSUM62 = substitution_matrices.load("BLOSUM62")
 ALIGNMENT_FILE_PATTERN = r"(\S+)\((\S+)\)_(\S+)\((\S+)\)\.aln"
@@ -33,15 +34,16 @@ def get_alignments(entry:Entry, chain_pair: tuple, source_pair: tuple ,use_matri
 		seqs = []
 		for i in range(0,len(chain_pair)):
 			if source_pair[i] == 'model':
-				seq = ''.join([RESIDUE_REF[res.resname]
-						for res in entry.model[chain_pair[i]] if res.resname in RESIDUE_REF.keys()])
+				seq = entry.get_modelseq(chain_pair[i])
 			elif source_pair[i] == 'fasta':
 				seq = entry.fasta_dict[chain_pair[i]]['sequence']
+			else:
+				raise Exception("Not supported sequence source!")
 			seqs.append(seq)
 		if use_matrix:
-			alignments = Bio.pairwise2.align.localds(seqs[0], seqs[1], BLOSUM62, -10, -1)
+			alignments = Bio.pairwise2.align.localds(seqs[0], seqs[1], BLOSUM62, -10, -1)  # type: ignore
 		else:
-			alignments = Bio.pairwise2.align.localxx(seqs[0], seqs[1])
+			alignments = Bio.pairwise2.align.localxx(seqs[0], seqs[1])  # type: ignore
 		s = Bio.pairwise2.format_alignment(*alignments[0], full_sequences=True)
 		with open(filename, 'w') as f:
 			f.write(s)

@@ -2,8 +2,9 @@ import os,sys
 
 import numpy as np
 
-from biostruct.entry import Entry,RESIDUE_REF
+from biostruct.entry import Entry
 from biostruct.components.alignment import get_alignments
+from biostruct.utils.residue_refs import STD_REF
 
 CONTACT_FILENAME_PATTERN = r"(\S+)_(\S+)\(\d+\)\.contact"
 
@@ -36,36 +37,64 @@ def get_contact(entry:Entry, pair:tuple, cutoff:int, save_zeros:bool=False, redo
 		map_data = np.zeros(shape=(len(chain1_fasta), len(chain2_fasta)))
 		map_data[:,:] = -1
 		
-		i = 0
-		for x in range(0, len(chain1_model)):
-			animo1 = chain1_model.child_list[x]
-			#Skip non-animos
-			if not animo1.resname in RESIDUE_REF:
+		aln_index1 = 0
+		map_index1 = 0
+		for animo1 in chain1_model.child_list:
+			#Skip non-animos,only move pdb
+			if not animo1.resname in STD_REF:
 				continue
-			#Skip gaps
-			while aln1[0][i] == '-':
-				i += 1
+			#Incase aln is at end but pdb still has some tails
+			if aln_index1 >= len(aln1[2]):
+				break
+			#Skip gaps in fasta, not move map index
+			if aln1[2][aln_index1] == '-':
+				aln_index1 += 1
+				continue
+			#Skip gaps in pdb, not move pdb
+			while aln1[0][aln_index1] == '-':
+				aln_index1 += 1
+				map_index1 += 1
+
 			#Skip non-matchings
-			if aln1[1][i] != '|':
-				i += 1
+			if aln1[1][aln_index1] != '|':
+				aln_index1 += 1
+				map_index1 += 1
 				continue
-			j = 0
-			for y in range(0, len(chain2_model)):
-				animo2 = chain2_model.child_list[y]
-				if not animo2.resname in RESIDUE_REF:
+
+			aln_index2 = 0
+			map_index2 = 0
+			for animo2 in chain2_model.child_list:
+				#Skip non-animos,only move pdb
+				if not animo2.resname in STD_REF:
 					continue
-				while aln2[0][j] == '-':
-					j += 1
-				if aln2[1][j] != '|':
-					j += 1
+				if aln_index2 >= len(aln2[2]):
+					break
+				#Skip gaps in fasta, not move map index
+				if aln2[2][aln_index2] == '-':
+					aln_index2 += 1
+					continue
+				#Skip gaps in pdb, not move pdb
+				while aln2[0][aln_index2] == '-':
+					aln_index2 += 1
+					map_index2 += 1
+
+				#Skip non-matchings
+				if aln2[1][aln_index2] != '|':
+					aln_index2 += 1
+					map_index2 += 1
 					continue
 
-				distmap = np.array([[atom1-atom2 for atom2 in animo2 if atom2.element != 'H']for atom1 in animo1 if atom1.element != 'H'])
+				distmap = np.array([[atom1-atom2 for atom2 in animo2 if atom2.element != 'H']
+				                   for atom1 in animo1 if atom1.element != 'H'])
 				d = np.min(distmap)
-				map_data[i, j] = 0 if d > cutoff else 1
-				
-				j += 1
-			i += 1
+				map_data[map_index1, map_index2] = 0 if d > cutoff else 1
+
+				aln_index2 += 1
+				map_index2 += 1
+
+			aln_index1 += 1
+			map_index1 += 1
+			
 		#save mapdata
 		if np.max(map_data) > 0 or save_zeros:
 			np.savetxt(contact_filepath, map_data, fmt='%+2i')
