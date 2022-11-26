@@ -8,7 +8,7 @@ from biostruct.utils.residue_refs import STD_REF
 
 CONTACT_FILENAME_PATTERN = r"(\S+)_(\S+)\(\d+\)\.contact"
 
-def get_contact(entry:Entry, pair:tuple, cutoff:int, save_zeros:bool=False, redo=False) -> np.ndarray:
+def get_contact(entry:Entry, pair:tuple, cutoff:int, save_zeros:bool=True, redo=False) -> np.ndarray:
 	#make dir if not exsit
 	if not os.path.isdir(entry.get_path('contacts/')):
 			os.makedirs(entry.get_path('contacts/'), exist_ok=True)
@@ -100,3 +100,6 @@ def get_contact(entry:Entry, pair:tuple, cutoff:int, save_zeros:bool=False, redo
 			np.savetxt(contact_filepath, map_data, fmt='%+2i')
 			
 	return map_data
+
+
+

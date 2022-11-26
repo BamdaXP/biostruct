@@ -25,10 +25,6 @@ class Monoer():
 		self.asm = int(group[1][1:-1]) if group[1] else None
 		self.chain_id = group[2]
 
-
-
-
-			
 	def __str__(self):
 		return self.full_string
 
