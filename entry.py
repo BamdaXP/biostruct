@@ -1,4 +1,5 @@
 import os,requests,json,re,wget
+from typing import Optional
 
 from Bio.PDB.Structure import Structure
 from Bio.PDB.Model import Model
@@ -10,9 +11,6 @@ from biostruct.pair import Pair
 from biostruct.utils.residue_refs import STD_REF
 
 import numpy as np
-
-
-
 
 class Entry:
 	@staticmethod
@@ -33,7 +31,7 @@ class Entry:
 					for name in dirs:
 						os.rmdir(os.path.join(root, name))
 
-	def __init__(self, pid: str, root_dir:str,asm:int|None = None) -> None:
+	def __init__(self, pid: str, root_dir:str,asm:Optional[int] = None) -> None:
 		self.pid = pid.upper()
 		if asm:
 			self.dir = os.path.join(root_dir,f"{pid}({asm})")
