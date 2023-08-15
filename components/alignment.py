@@ -40,10 +40,12 @@ def get_alignments(entry:Entry, chain_pair: tuple, source_pair: tuple ,use_matri
 			else:
 				raise Exception("Not supported sequence source!")
 			seqs.append(seq)
-		if use_matrix:
+			
+		try:
 			alignments = Bio.pairwise2.align.localds(seqs[0], seqs[1], BLOSUM62, -10, -1)  # type: ignore
-		else:
+		except:
 			alignments = Bio.pairwise2.align.localxx(seqs[0], seqs[1])  # type: ignore
+
 		s = Bio.pairwise2.format_alignment(*alignments[0], full_sequences=True)
 		with open(filename, 'w') as f:
 			f.write(s)

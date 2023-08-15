@@ -29,22 +29,27 @@ def get_fix(entry:Entry,chain_id:str,redo=False)-> Bio.PDB.Chain.Chain:
 
 		print(f"Fixing cif file chain {chain_id} in {entry}")
 		env = modeller.Environ()
+		env.io.hetatm = True #type:ignore
 
 		m = modeller.Model(env,file=entry.get_path("mmcif.cif"),model_format='MMCIF', model_segment=(f'FIRST:{chain_id}',f'LAST:{chain_id}'))
 		aln =modeller.Alignment(env)
 		aln.append(file=fasta_file, align_codes="Sequence",alignment_format='FASTA')
 		aln.append_model(mdl=m, align_codes="Structure",atom_files=entry.get_path("mmcif.cif"))
-		aln.align2d()
+		aln.salign()
 		aln.write(file=entry.get_path(f'fix/{chain_id}.pir'),alignment_format='PIR')
+		
+		#aln.write(file=entry.get_path(f'fix/{chain_id}.pap'), alignment_format='PAP',alignment_features='INDICES HELIX BETA')
+
+		'''
 		#Clean \n in pir headers
 		s = ''
-		with open(entry.get_path(f'fix/{chain_id}.pir'),'r') as f:
+		with open(entry.get_path(f'fix/{chain_id}.ali'),'r') as f:
 			s = f.read()
 			s = ':'.join([[parts[0]] + [part if '>P1;' in part else part.replace('\n', ' ')
-		                  for part in parts[1:-1]] + [parts[-1]] for parts in [s.split(':')]][0])
-		with open(entry.get_path(f'fix/{chain_id}.pir'),'w') as f:
+						  for part in parts[1:-1]] + [parts[-1]] for parts in [s.split(':')]][0])
+		with open(entry.get_path(f'fix/{chain_id}.ali'),'w') as f:
 			f.write(s)
-
+		'''
 		a = modeller.automodel.AutoModel(env, alnfile=entry.get_path(f'fix/{chain_id}.pir'), knowns="Structure", sequence="Sequence",
 		root_name=f"{entry}_{chain_id}")
 		a.starting_model = 1
